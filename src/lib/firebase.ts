@@ -6,13 +6,13 @@ import { getAuth } from "firebase/auth";
 
 // Your config (same as yours)
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+  apiKey: "AIzaSyCTSE2m1vmgEIz-jOSzH-Au-MFyWdy_yBU",
+  authDomain: "artisan-marketplace-ai-b31cf.firebaseapp.com",
+  projectId: "artisan-marketplace-ai-b31cf",
+  storageBucket: "artisan-marketplace-ai-b31cf.appspot.com",
+  messagingSenderId: "1098354854044",
+  appId: "1:1098354854044:web:6954e13acb8c0502b10559",
+  measurementId: "G-FG8ZPC53GG"
 };
 
 // Initialize once
