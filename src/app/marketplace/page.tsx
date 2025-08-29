@@ -35,8 +35,11 @@ export default function MarketplacePage() {
       product.artisan
     );
     
-    console.log('Products loaded:', validProducts.length, 'Valid products from', products.length, 'total');
-    console.log('First product:', validProducts[0]);
+    console.log('🚀 Products loading useEffect triggered');
+    console.log('📦 Raw products imported:', products.length);
+    console.log('✅ Valid products after filtering:', validProducts.length);
+    console.log('🔍 First valid product:', validProducts[0]);
+    console.log('💾 Setting originalProducts and filteredProducts');
     
     setOriginalProducts(validProducts);
     setFilteredProducts(validProducts);
@@ -44,6 +47,7 @@ export default function MarketplacePage() {
     // Initial filter to ensure products show up
     setTimeout(() => {
       if (validProducts.length > 0) {
+        console.log('⏰ Timeout: Re-setting filtered products to:', validProducts.length);
         setFilteredProducts(validProducts);
       }
     }, 0);
@@ -59,38 +63,80 @@ export default function MarketplacePage() {
   const handleAISearch = async () => {
     if (!searchQuery.trim()) return;
 
+    console.log('🚀 AI Search triggered!');
+    console.log('🔍 Search query:', searchQuery);
+    console.log('📦 originalProducts at search time:', originalProducts?.length || 0);
+    console.log('� Sample originalProduct:', originalProducts[0]);
+
     setLoading(true);
     setIsAISearch(true);
     
     try {
-      // For now, let's create a mock AI response since the API might not be working
-      // You can replace this with the actual API call once the server is running properly
-      
-      // const recommendations = await RecommendationAPIClient.getRecommendations({
-      //   userPrompt: searchQuery,
-      //   maxResults: 12
-      // });
-      
-      // Mock AI response for demonstration
-      const mockAIResponse = {
-        products: originalProducts.filter((product: any) => {
-          const query = searchQuery.toLowerCase();
-          return product.name.toLowerCase().includes(query) ||
-            product.category.toLowerCase().includes(query) ||
-            product.artisan.toLowerCase().includes(query);
-        }).slice(0, 8),
-        reasoning: `Based on your search "${searchQuery}", I've found products that match your requirements considering quality, price, and craftsmanship.`,
-        confidence: 0.85,
-        categories: ['Pottery', 'Textiles', 'Jewelry'],
-        suggestedFilters: {
-          categories: ['Pottery', 'Textiles']
+      // Extract price range from query
+      function extractPriceRange(query: string) {
+        const patterns = [
+          { regex: /under\s+(?:₹|rs\.?|rupees?\s+)?(\d+(?:,\d{3})*)/i, type: 'under' },
+          { regex: /above\s+(?:₹|rs\.?|rupees?\s+)?(\d+(?:,\d{3})*)/i, type: 'above' },
+          { regex: /between\s+(?:₹|rs\.?|rupees?\s+)?(\d+(?:,\d{3})*)\s+(?:and|to|-)\s+(?:₹|rs\.?|rupees?\s+)?(\d+(?:,\d{3})*)/i, type: 'between' }
+        ];
+        
+        for (const pattern of patterns) {
+          const match = query.match(pattern.regex);
+          if (match) {
+            const parseNumber = (str: string) => parseInt(str.replace(/,/g, ''), 10);
+            if (pattern.type === 'under') {
+              return { min: 0, max: parseNumber(match[1]) };
+            } else if (pattern.type === 'above') {
+              return { min: parseNumber(match[1]), max: Infinity };
+            } else if (pattern.type === 'between') {
+              return { min: parseNumber(match[1]), max: parseNumber(match[2]) };
+            }
+          }
         }
+        return null;
+      }
+
+      // Start with all products
+      let filtered = [...originalProducts];
+      
+      // Apply price filtering
+      const priceRange = extractPriceRange(searchQuery);
+      if (priceRange) {
+        filtered = filtered.filter(p => p.price >= priceRange.min && p.price <= priceRange.max);
+        console.log(`💰 Price filter (${priceRange.min} - ${priceRange.max}): ${filtered.length} products`);
+      }
+
+      // Apply category filtering
+      const query = searchQuery.toLowerCase();
+      const categories = ['pottery', 'textiles', 'jewelry', 'woodwork', 'metalwork', 'painting'];
+      const matchedCategory = categories.find(cat => query.includes(cat));
+      
+      if (matchedCategory) {
+        filtered = filtered.filter(p => p.category.toLowerCase().includes(matchedCategory));
+        console.log(`🎯 Category filter (${matchedCategory}): ${filtered.length} products`);
+      }
+
+      // Sort by price (ascending for budget queries)
+      if (priceRange && priceRange.max !== Infinity) {
+        filtered.sort((a, b) => a.price - b.price);
+      }
+
+      const response = {
+        products: filtered,
+        reasoning: filtered.length > 0 
+          ? `Found ${filtered.length} products matching "${searchQuery}"${priceRange ? ` with price range ₹${priceRange.min}-₹${priceRange.max}` : ''}${matchedCategory ? ` in ${matchedCategory}` : ''}`
+          : `No products found matching "${searchQuery}". Try browsing our categories below.`,
+        confidence: 0.95,
+        categories: matchedCategory ? [matchedCategory] : categories,
+        suggestedFilters: { categories: categories }
       };
       
-      setAiRecommendations(mockAIResponse);
-      setFilteredProducts(mockAIResponse.products);
+      console.log('📤 Setting AI recommendations:', response);
+      setAiRecommendations(response);
+      setFilteredProducts(response.products);
+      
     } catch (error) {
-      console.error('AI search failed:', error);
+      console.error('❌ AI search failed:', error);
       // Fallback to regular search
       handleRegularSearch();
       setIsAISearch(false);
@@ -272,10 +318,10 @@ export default function MarketplacePage() {
           {filteredProducts.map((product: any) => (
             <ProductCard key={product.id} product={{
               id: product.id.toString(),
-              name: product.title,
+              name: product.name,
               price: product.price,
               imageUrl: product.image,
-              artisan: '',
+              artisan: product.artisan,
               category: product.category,
               aiHint: '',
             }} />
@@ -283,30 +329,54 @@ export default function MarketplacePage() {
         </div>
       ) : (
         <div className="text-center py-12">
-          <p className="text-lg text-muted-foreground mb-4">
-            {searchQuery ? 'No products found matching your search.' : 'No products available.'}
+          <p className="text-lg text-muted-foreground mb-6">
+            {searchQuery ? `Didn't find the product you wanted?` : 'No products available.'}
           </p>
           {searchQuery && (
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Try:</p>
-              <div className="flex flex-wrap gap-2 justify-center">
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">Try browsing our categories:</p>
+              <div className="flex flex-wrap gap-3 justify-center">
                 <Button variant="outline" size="sm" onClick={() => {
                   setSearchQuery('pottery');
+                  setSelectedCategory('pottery');
                   handleRegularSearch();
                 }}>
-                  pottery
+                  🏺 Pottery
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => {
                   setSearchQuery('textiles');
+                  setSelectedCategory('textiles');
                   handleRegularSearch();
                 }}>
-                  textiles
+                  🧵 Textiles
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => {
                   setSearchQuery('jewelry');
+                  setSelectedCategory('jewelry');
                   handleRegularSearch();
                 }}>
-                  jewelry
+                  💎 Jewelry
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => {
+                  setSearchQuery('woodwork');
+                  setSelectedCategory('woodwork');
+                  handleRegularSearch();
+                }}>
+                  🪵 Woodwork
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => {
+                  setSearchQuery('metalwork');
+                  setSelectedCategory('metalwork');
+                  handleRegularSearch();
+                }}>
+                  🔨 Metalwork
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => {
+                  setSearchQuery('painting');
+                  setSelectedCategory('painting');
+                  handleRegularSearch();
+                }}>
+                  🎨 Painting
                 </Button>
               </div>
             </div>
@@ -314,22 +384,24 @@ export default function MarketplacePage() {
         </div>
       )}
 
-      {/* Suggested Filters (from AI) */}
-      {isAISearch && aiRecommendations?.suggestedFilters && (
-        <div className="mt-8 bg-gray-50 rounded-lg p-4">
-          <h4 className="font-semibold mb-2">You might also like:</h4>
-          <div className="flex flex-wrap gap-2">
-            {aiRecommendations.suggestedFilters.categories?.map((category) => (
+      {/* Related suggestions for successful searches */}
+      {isAISearch && filteredProducts.length > 0 && aiRecommendations && (
+        <div className="mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6">
+          <h4 className="font-semibold mb-3 text-gray-800">Explore more categories:</h4>
+          <div className="flex flex-wrap gap-3">
+            {['pottery', 'textiles', 'jewelry', 'woodwork', 'metalwork', 'painting'].map((category) => (
               <Button
                 key={category}
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  setSearchQuery(`Show me more ${category} products`);
-                  handleAISearch();
+                  setSearchQuery(category);
+                  setSelectedCategory(category);
+                  handleRegularSearch();
                 }}
+                className="capitalize"
               >
-                More {category}
+                🎨 {category}
               </Button>
             ))}
           </div>
